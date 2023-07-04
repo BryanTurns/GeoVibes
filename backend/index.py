@@ -3,6 +3,7 @@ from time import sleep
 from dotenv import load_dotenv
 from os import getenv
 import text2emotion as te
+from flask_apscheduler import APScheduler
 import requests
 import json
 import csv
@@ -11,22 +12,20 @@ load_dotenv()
 app = Flask(__name__)
 
 
-@app.route('/api/getNews', methods=['GET'])
-def getNews():
-    return getAllNews(countryCodesPath="countryCodes.csv", newsPath="news.json", apiKey=getenv('API_KEY'), language='en', numberOfArticles=40, startDate='2023-06-03 00:00:00', endDate='2023-07-03 12:40:00')
+def splitCountryCodes(countryCodes, maxSize=50):
+    splitCodes = []
+    count = 0
+    tempArray = []
+    for code in countryCodes:
+        tempArray.append(code)
 
-
-@app.route('/api/getSentiment/<countryCode>', methods = ['GET'])
-def getSentiment(countryCode):
-    return "Sentiment for " + countryCode
-
-
-@app.route('/api/getEmotions', methods = ['GET'])
-def getEmotions():
-    return analyzeAllNews(news=getNews(), emotionsPath='emotions.json', newsPath='news.json')
+        if count > maxSize:
+            splitCodes.append(tempArray)
+            tempArray = []
+        
+        count += 1
     
-
-
+    return splitCodes
 
 def getCountryCodes(path):
     countryCodes = []
@@ -45,6 +44,37 @@ def getCountryCodes(path):
                 line_count += 1
 
     return countryCodes
+
+splitCountryCodes =  splitCountryCodes(getCountryCodes('countryCodes.csv'))
+currentSplit = 0
+
+def updateCountryNews(splitCountryCoes):
+    getNews(apiKey=getenv('API_KEY'), numberOfArticles=40, startDate='2023-06-03 00:00:00', endDate='2023-07-03 12:40:00', countryCodes=splitCountryCodes[currentSplit])
+    currentSplit += 1
+    if currentSplit > splitCountryCodes.len()-1:
+        currentSplit = 0
+
+
+scheduler = APScheduler()
+scheduler.init_app(app)
+scheduler.start()
+scheduler.add_job(id='test-job', func=updateCountryNews, trigger='interval', hours=24)
+
+
+@app.route('/api/getAllNews', methods=['GET'])
+def getAllNews():
+    return getNews(apiKey=getenv('API_KEY'), numberOfArticles=40, startDate='2023-06-03 00:00:00', endDate='2023-07-03 12:40:00')
+
+
+@app.route('/api/getAllSentiment/<countryCode>', methods = ['GET'])
+def getSentiment(countryCode):
+    return "Sentiment for " + countryCode
+
+
+@app.route('/api/getEmotions', methods = ['GET'])
+def getEmotions():
+    return analyzeAllNews(news=getNews(), emotionsPath='emotions.json', newsPath='news.json')
+    
 
 
 def getNewsByCountry(apiKey, countryCode, language, numberOfArticles, startDate, endDate):
@@ -81,8 +111,7 @@ def saveNews(path, news):
         json.dump(news, json_file)
 
 
-def getAllNews(countryCodesPath, newsPath, apiKey, language, numberOfArticles, startDate, endDate, reset=False):
-    print(f"APIKEY: {apiKey}")
+def getNews(apiKey, numberOfArticles, startDate, endDate, reset=False, newsPath='news.json', countryCodesPath='countryCodes.csv', language='en'):
     # Gets country codes in order to make requests
     print("ATTEMPTING TO GATHER COUNTRY CODES")
     countryCodes = getCountryCodes(countryCodesPath)
@@ -142,10 +171,47 @@ def getAllNews(countryCodesPath, newsPath, apiKey, language, numberOfArticles, s
     return news
 
 
+def getNews(apiKey, numberOfArticles, startDate, endDate, countryCodes, newsPath='news.json', language='en'):
+    print("ATTEMPTING TO LOAD PREVIOUS NEWS")
+    with open(newsPath, 'r') as json_file:
+        news = json.load(json_file) 
+
+    count = 0
+    failCount = 0
+    # Get the news for the country
+    # NEED TO DELETE OLD NEWS AND ADD NEW NEWS
+    try:
+        for countryCode in countryCodes:
+            countryNews = getNewsByCountry(apiKey=apiKey, countryCode=countryCode, language=language, numberOfArticles=numberOfArticles, startDate=startDate, endDate=endDate)
+            # Check if the request was valid and append if so
+            if countryNews == False:
+                failCount += 1
+                if failCount > 5:
+                    break
+                print("INVALID REQUEST")
+                continue
+            else:
+                failCount = 0
+                news.append(countryNews)
+
+            # Can only make 1 request/sec so this avoids limiters
+            print(f"NEWS GRAB ITERATIONS: {count}")
+            count += 1
+            sleep(1.5)
+
+    except Exception as e:
+        print(e)
+        saveNews(path=newsPath, news=news)
+        return news
+    
+
+
 def analyzeAllNews(news, emotionsPath, newsPath):
     emotionsByCountry = []
+    # Iterate through the countries
     for country in news:
         print(f"STARTING ANALYSIS ON: {country['countryCode']}")
+        # Initialize emotions dict and article counter 
         totalEmotions = {
             'Angry': 0,
             'Fear': 0,
@@ -154,11 +220,20 @@ def analyzeAllNews(news, emotionsPath, newsPath):
             'Surprise': 0
         }
         articleCount = 0
+
+        # Iterate over each article in the country
         for article in country['articles']:
+            # If the article has already been analyzed, skip it
+            if 'emotions' in article.keys(): 
+                print(f"ARTICLE {article['title']} ALREADY ANALYZED")
+                continue
+            # Analyze the article
             print(f"ANALYZING ARTICLE: {article['title']}")
             emotions = te.get_emotion(article['text'])
+            # Attach the analyzed emotions to the article to prevent rerunning
             article['emotions'] = emotions
 
+            # Add emotions to emotion total for average per country
             totalEmotions['Angry'] += emotions['Angry']
             totalEmotions['Fear'] += emotions['Fear']
             totalEmotions['Happy'] += emotions['Happy']
@@ -166,6 +241,7 @@ def analyzeAllNews(news, emotionsPath, newsPath):
             totalEmotions['Surprise'] += emotions['Surprise']
             articleCount += 1
         
+        # If there were no articles, set emotions to 0
         if articleCount == 0:
             emotionsByCountry.append({
                 "countryCode": country["countryCode"],
@@ -173,21 +249,29 @@ def analyzeAllNews(news, emotionsPath, newsPath):
             })
             continue
 
-        
+        # Find average of each emotion
         totalEmotions['Angry'] = totalEmotions['Angry'] / articleCount
         totalEmotions['Fear'] = totalEmotions['Fear'] / articleCount
         totalEmotions['Happy'] = totalEmotions['Happy'] /articleCount
         totalEmotions['Sad'] = totalEmotions['Sad'] / articleCount
         totalEmotions['Surprise'] = totalEmotions['Surprise'] / articleCount
         print(f"ANALYZED EMOTIONS: {totalEmotions}")
+
+        # Add the country and it's emotions to array
         emotionsByCountry.append({
             "countryCode": country["countryCode"],
             "emotions": totalEmotions
         })
+
+        # Save the new news and analysis data for each country
         saveNews(news=news, path=newsPath)
         saveAnalysis(emotions=emotionsByCountry, emotionsPath=emotionsPath)
 
+    # Save the news and analysis again incase update isn't caught
+    saveNews(news=news, path=newsPath)
     saveAnalysis(emotions=emotionsByCountry, emotionsPath=emotionsPath)
+
+    # Return the list of emotions by country
     return emotionsByCountry
 
 
