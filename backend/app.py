@@ -205,6 +205,15 @@ def getSentiment(countryCode):
 def getEmotions():
     return analyzeAllNews(news=getNews(), emotionsPath='emotions.json', newsPath='news.json')
     
+@app.route('/api/getCountryNews/<countryCode>')
+def getCountryNews(countryCode):
+    news = []
+    with open('news.json', 'r') as json_file:
+        news = json.load(json_file)
+    
+    for country in news:
+        if country['countryCode'] == countryCode:
+            return country
 
 
 
