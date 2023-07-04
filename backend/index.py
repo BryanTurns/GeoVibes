@@ -107,7 +107,7 @@ def getNews(apiKey, numberOfArticles, startDate, endDate, reset=False, newsPath=
 
 
 
-def getNews(apiKey, numberOfArticles, startDate, endDate, countryCodes, newsPath='news.json', language='en'):
+def getNewsUsingCountryCodes(apiKey, numberOfArticles, startDate, endDate, countryCodes, newsPath='news.json', language='en'):
     print("ATTEMPTING TO LOAD PREVIOUS NEWS")
     with open(newsPath, 'r') as json_file:
         news = json.load(json_file) 
@@ -179,7 +179,7 @@ currentSplit = 0
 def updateCountryNews():
     global splitCountryCodes
     global currentSplit
-    getNews(apiKey=getenv('API_KEY'), numberOfArticles=40, startDate='2023-06-03 00:00:00', endDate='2023-07-03 12:40:00', countryCodes=splitCountryCodes[currentSplit])
+    getNewsUsingCountryCodes(apiKey=getenv('API_KEY'), numberOfArticles=40, startDate='2023-06-03 00:00:00', endDate='2023-07-03 12:40:00', countryCodes=splitCountryCodes[currentSplit])
     currentSplit += 1
     if currentSplit > len(splitCountryCodes)-1:
         currentSplit = 0
@@ -193,7 +193,7 @@ scheduler.add_job(id='test-job', func=updateCountryNews, trigger='interval', hou
 
 @app.route('/api/getAllNews', methods=['GET'])
 def getAllNews():
-    return getNews(apiKey=getenv('API_KEY'), numberOfArticles=40, startDate='2023-06-03 00:00:00', endDate='2023-07-03 12:40:00')
+    return getNews(getenv('API_KEY'), 40, '2023-06-03 00:00:00', '2023-07-03 12:40:00')
 
 
 @app.route('/api/getAllSentiment/<countryCode>', methods = ['GET'])
