@@ -195,11 +195,9 @@ scheduler.add_job(id='test-job', func=updateCountryNews, trigger='interval', hou
 def getAllNews():
     return getNews(getenv('API_KEY'), 40, '2023-06-03 00:00:00', '2023-07-03 12:40:00')
 
-
 @app.route('/api/getAllSentiment/<countryCode>', methods = ['GET'])
 def getSentiment(countryCode):
     return "Sentiment for " + countryCode
-
 
 @app.route('/api/getEmotions', methods = ['GET'])
 def getEmotions():
@@ -212,10 +210,10 @@ def getCountryNews(countryCode):
         news = json.load(json_file)
     
     for country in news:
-        if country['countryCode'] == countryCode:
+        if country['countryCode'] == countryCode.upper():
             return country
         
-    return { "country": countryCode, 'articles': []}
+    return { "country": countryCode.upper(), 'articles': []}
 
 @app.route('/api/getCountryEmotions/<countryCode>')
 def getCountryEmotions(countryCode):
@@ -224,12 +222,71 @@ def getCountryEmotions(countryCode):
         emotions = json.load(json_file)
 
     for country in emotions:
-        if country['countryCode'] == countryCode:
+        if country['countryCode'] == countryCode.upper():
             return country
         
-    return { "country": countryCode, 'emotions': []}
+    return { "country": countryCode.upper(), 'emotions': []}
     
+@app.route('/api/updateEmotionsFromArticles')
+def updateEmotionsFromArticles():
+    emotionsByCountry = []
+    with open('news.json', 'r') as json_file:
+        news = json.load(json_file)
+    
+    for country in news:
+        # Initialize emotions dict and article counter 
+        totalEmotions = {
+            'Angry': 0,
+            'Fear': 0,
+            'Happy': 0,
+            'Sad': 0,
+            'Surprise': 0
+        }
+        articleCount = 0
 
+        # Iterate over each article in the country
+        for article in country['articles']:
+            # If the article has already been analyzed, skip it
+            
+            # Analyze the article
+            
+            # Attach the analyzed emotions to the article to prevent rerunning
+            if 'emotions' not in article.keys():
+                continue
+            emotions = article['emotions']
+
+            # Add emotions to emotion total for average per country
+            totalEmotions['Angry'] += emotions['Angry']
+            totalEmotions['Fear'] += emotions['Fear']
+            totalEmotions['Happy'] += emotions['Happy']
+            totalEmotions['Sad'] += emotions['Sad']
+            totalEmotions['Surprise'] += emotions['Surprise']
+            articleCount += 1
+        
+        # If there were no articles, set emotions to 0
+        if articleCount == 0:
+            emotionsByCountry.append({
+                "countryCode": country["countryCode"],
+                "emotions": totalEmotions
+            })
+            continue
+
+        # Find average of each emotion
+        totalEmotions['Angry'] = totalEmotions['Angry'] / articleCount
+        totalEmotions['Fear'] = totalEmotions['Fear'] / articleCount
+        totalEmotions['Happy'] = totalEmotions['Happy'] /articleCount
+        totalEmotions['Sad'] = totalEmotions['Sad'] / articleCount
+        totalEmotions['Surprise'] = totalEmotions['Surprise'] / articleCount
+
+        # Add the country and it's emotions to array
+        emotionsByCountry.append({
+            "countryCode": country["countryCode"],
+            "emotions": totalEmotions
+        })
+
+        # Save the new news and analysis data for each country
+        saveAnalysis(emotions=emotionsByCountry, emotionsPath='emotions.json')
+    return emotionsByCountry
 
 def analyzeAllNews(news, emotionsPath, newsPath):
     emotionsByCountry = []
@@ -251,6 +308,7 @@ def analyzeAllNews(news, emotionsPath, newsPath):
             # If the article has already been analyzed, skip it
             if 'emotions' in article.keys(): 
                 print(f"ARTICLE {article['title']} ALREADY ANALYZED")
+                articleCount += 1
                 continue
             # Analyze the article
             print(f"ANALYZING ARTICLE: {article['title']}")
@@ -291,11 +349,11 @@ def analyzeAllNews(news, emotionsPath, newsPath):
         # Save the new news and analysis data for each country
         saveNews(news=news, path=newsPath)
         saveAnalysis(emotions=emotionsByCountry, emotionsPath=emotionsPath)
-
+        updateEmotionsFromArticles()
     # Save the news and analysis again incase update isn't caught
     saveNews(news=news, path=newsPath)
     saveAnalysis(emotions=emotionsByCountry, emotionsPath=emotionsPath)
-
+    updateEmotionsFromArticles()
     # Return the list of emotions by country
     return emotionsByCountry
 
