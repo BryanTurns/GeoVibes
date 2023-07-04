@@ -12,71 +12,6 @@ load_dotenv()
 app = Flask(__name__)
 
 
-def splitCountryCodes(countryCodes, maxSize=50):
-    splitCodes = []
-    count = 0
-    tempArray = []
-    for code in countryCodes:
-        tempArray.append(code)
-
-        if count > maxSize:
-            splitCodes.append(tempArray)
-            tempArray = []
-        
-        count += 1
-    
-    return splitCodes
-
-def getCountryCodes(path):
-    countryCodes = []
-    # Open the csv file
-    with open(path) as csv_file:
-        csv_reader = csv.reader(csv_file, delimiter=',')
-        line_count = 0
-        
-        # Read through the file except the first line
-        for row in csv_reader:
-            if line_count == 0:
-                line_count += 1
-            else:
-                # Append each country code, but discard the extra quotes and spaces
-                countryCodes.append(row[1].replace('\"', '').replace(' ', ''))
-                line_count += 1
-
-    return countryCodes
-
-splitCountryCodes =  splitCountryCodes(getCountryCodes('countryCodes.csv'))
-currentSplit = 0
-
-def updateCountryNews(splitCountryCoes):
-    getNews(apiKey=getenv('API_KEY'), numberOfArticles=40, startDate='2023-06-03 00:00:00', endDate='2023-07-03 12:40:00', countryCodes=splitCountryCodes[currentSplit])
-    currentSplit += 1
-    if currentSplit > splitCountryCodes.len()-1:
-        currentSplit = 0
-
-
-scheduler = APScheduler()
-scheduler.init_app(app)
-scheduler.start()
-scheduler.add_job(id='test-job', func=updateCountryNews, trigger='interval', hours=24)
-
-
-@app.route('/api/getAllNews', methods=['GET'])
-def getAllNews():
-    return getNews(apiKey=getenv('API_KEY'), numberOfArticles=40, startDate='2023-06-03 00:00:00', endDate='2023-07-03 12:40:00')
-
-
-@app.route('/api/getAllSentiment/<countryCode>', methods = ['GET'])
-def getSentiment(countryCode):
-    return "Sentiment for " + countryCode
-
-
-@app.route('/api/getEmotions', methods = ['GET'])
-def getEmotions():
-    return analyzeAllNews(news=getNews(), emotionsPath='emotions.json', newsPath='news.json')
-    
-
-
 def getNewsByCountry(apiKey, countryCode, language, numberOfArticles, startDate, endDate):
     # Create the url for the news api request
     url = "https://api.worldnewsapi.com/search-news?"
@@ -171,6 +106,7 @@ def getNews(apiKey, numberOfArticles, startDate, endDate, reset=False, newsPath=
     return news
 
 
+
 def getNews(apiKey, numberOfArticles, startDate, endDate, countryCodes, newsPath='news.json', language='en'):
     print("ATTEMPTING TO LOAD PREVIOUS NEWS")
     with open(newsPath, 'r') as json_file:
@@ -203,6 +139,75 @@ def getNews(apiKey, numberOfArticles, startDate, endDate, countryCodes, newsPath
         print(e)
         saveNews(path=newsPath, news=news)
         return news
+
+def getSplitCountryCodes(countryCodes, maxSize=50):
+    splitCodes = []
+    count = 0
+    tempArray = []
+    for code in countryCodes:
+        tempArray.append(code)
+
+        if count > maxSize:
+            splitCodes.append(tempArray)
+            tempArray = []
+        
+        count += 1
+    
+    return splitCodes
+
+def getCountryCodes(path):
+    countryCodes = []
+    # Open the csv file
+    with open(path) as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        line_count = 0
+        
+        # Read through the file except the first line
+        for row in csv_reader:
+            if line_count == 0:
+                line_count += 1
+            else:
+                # Append each country code, but discard the extra quotes and spaces
+                countryCodes.append(row[1].replace('\"', '').replace(' ', ''))
+                line_count += 1
+
+    return countryCodes
+
+splitCountryCodes =  getSplitCountryCodes(getCountryCodes('countryCodes.csv'))
+currentSplit = 0
+
+def updateCountryNews():
+    global splitCountryCodes
+    global currentSplit
+    getNews(apiKey=getenv('API_KEY'), numberOfArticles=40, startDate='2023-06-03 00:00:00', endDate='2023-07-03 12:40:00', countryCodes=splitCountryCodes[currentSplit])
+    currentSplit += 1
+    if currentSplit > len(splitCountryCodes)-1:
+        currentSplit = 0
+
+
+scheduler = APScheduler()
+scheduler.init_app(app)
+scheduler.start()
+scheduler.add_job(id='test-job', func=updateCountryNews, trigger='interval', hours=24)
+
+
+@app.route('/api/getAllNews', methods=['GET'])
+def getAllNews():
+    return getNews(apiKey=getenv('API_KEY'), numberOfArticles=40, startDate='2023-06-03 00:00:00', endDate='2023-07-03 12:40:00')
+
+
+@app.route('/api/getAllSentiment/<countryCode>', methods = ['GET'])
+def getSentiment(countryCode):
+    return "Sentiment for " + countryCode
+
+
+@app.route('/api/getEmotions', methods = ['GET'])
+def getEmotions():
+    return analyzeAllNews(news=getNews(), emotionsPath='emotions.json', newsPath='news.json')
+    
+
+
+
     
 
 
