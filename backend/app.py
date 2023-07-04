@@ -348,7 +348,7 @@ def analyzeAllNews(news, emotionsPath, newsPath):
 
         # Save the new news and analysis data for each country
         saveNews(news=news, path=newsPath)
-        saveAnalysis(emotions=emotionsByCountry, emotionsPath=emotionsPath)
+        # saveAnalysis(emotions=emotionsByCountry, emotionsPath=emotionsPath)
         updateEmotionsFromArticles()
     # Save the news and analysis again incase update isn't caught
     saveNews(news=news, path=newsPath)
