@@ -195,7 +195,8 @@ scheduler.add_job(id='test-job', func=updateCountryNews, trigger='interval', hou
 @app.route('/api/getAllNews', methods=['GET'])
 @cross_origin()
 def getAllNews():
-    return getNews(getenv('API_KEY'), 40, '2023-06-03 00:00:00', '2023-07-03 12:40:00')
+    with open('news.json', 'r') as json_file:
+        return json.load(json_file)
 
 @app.route('/api/getAllSentiment/<countryCode>', methods = ['GET'])
 def getSentiment(countryCode):
