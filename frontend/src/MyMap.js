@@ -15,57 +15,99 @@ const MyMap = () => {
   const [isLoading,setIsLoading]  =useState(true)
   const [emotionData,setEmotionData] = useState([])
   useEffect( () =>{
-    try{
+    async function fetchData(){
+      try{
 
-      const {data} = axios.get('https://geovibesbackend.onrender.com/api/getEmotions')
-      setEmotionData(data)
-      // setIsLoading(false)
+        const {data} = await axios.get('https://geovibesbackend.onrender.com/api/getEmotions')
+        setEmotionData(data)
+        console.log(data)
+        setIsLoading(false)
+      }
+      catch(error){
+        console.log(error)
+        // setIsLoading(true)
+      }
     }
-    catch(error){
-      console.log(error)
-      setIsLoading(true)
-    }
+    fetchData()
   },[])
   const [sources,setSources] = useState([])
   const [tooltipContent,setTooltipContent] = useState("")
   const [emotion,setEmotion] = useState("happy")
 
   const style = (feature) =>{
+    // console.log(feature.properties.iso_a2)
     let fillColor;
-    const country =  emotionData.find(obj =>obj.countryCode.toLowerCase() === feature.properties.iso_a3.toLowerCase())
+    const country =  emotionData.find(obj =>{
+      
+      return obj.countryCode.toLowerCase() === feature.properties.iso_a2.toLowerCase()
+    })
+    // console.log(country?.emotions?.Angry)
+    
     let opacity;
     switch (emotion) {
       case 'happy':
         fillColor='green'
-        opacity = country.emotions.Happy
+        if(country === undefined){
+          opacity=1
+        }
+        else{
+
+          opacity = country.emotions.Happy
+          // console.log(opacity)
+        }
 
         break;
       case 'fear':
         fillColor = "black"
+        if(country === undefined){
+          opacity=1
+        }
+        else{
         opacity = country.emotions.Fear
-
+        }
         break;
       case 'anger':
         fillColor= "red"
+        if(country === undefined){
+          opacity=1
+        }
+        else{
         opacity = country.emotions.Angry
-
+        }
         break
       case 'sad':
         fillColor = 'orange'
+        if(country === undefined){
+          opacity=1
+        }
+        else{
         opacity = country.emotions.Sad
-
+        }
         break;
       case 'suprise':
         fillColor = 'blue'
-        opacity = country.emotions.Suprise
-
+        if(country === undefined){
+          opacity=1
+        }
+        else{
+        opacity = country.emotions.Surprise
+        }
         break;
       default:
         fillColor = 'green'
+        if(country === undefined){
+          opacity=1
+        }
+        else{
+          
         opacity = country.emotions.Happy
-
+        }
         setEmotion('happy')
         break;
+    }
+    if(feature.properties.iso_a2 =="IN"){
+
+      console.log(opacity)
     }
     return {
       fillColor: fillColor,
@@ -73,7 +115,7 @@ const MyMap = () => {
       opacity: 1,
       color: "white",
       // dashArray: "3",
-      fillOpacity: 0.6
+      fillOpacity: opacity
     }
   }
   function handleMouseOver(e,feature){
