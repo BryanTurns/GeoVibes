@@ -7,10 +7,11 @@ from flask_apscheduler import APScheduler
 import requests
 import json
 import csv
+from flask_cors import CORS, cross_origin
 
 load_dotenv()
 app = Flask(__name__)
-
+cors = CORS(app)
 
 def getNewsByCountry(apiKey, countryCode, language, numberOfArticles, startDate, endDate):
     # Create the url for the news api request
@@ -192,6 +193,7 @@ scheduler.add_job(id='test-job', func=updateCountryNews, trigger='interval', hou
 
 
 @app.route('/api/getAllNews', methods=['GET'])
+@cross_origin()
 def getAllNews():
     return getNews(getenv('API_KEY'), 40, '2023-06-03 00:00:00', '2023-07-03 12:40:00')
 
@@ -200,6 +202,7 @@ def getSentiment(countryCode):
     return "Sentiment for " + countryCode
 
 @app.route('/api/getEmotions', methods = ['GET'])
+@cross_origin()
 def getEmotions():
     emotions = []
     with open('emotions.json') as json_file:
@@ -208,6 +211,7 @@ def getEmotions():
     return emotions
     
 @app.route('/api/getCountryNews/<countryCode>')
+@cross_origin()
 def getCountryNews(countryCode):
     news = []
     with open('news.json', 'r') as json_file:
