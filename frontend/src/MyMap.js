@@ -1,31 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import { GeoJSON, MapContainer, TileLayer,Popup,Tooltip } from 'react-leaflet';
 import "leaflet/dist/leaflet.css"
 import data from "./custom.geo.json"
+import axios from "axios"
 
-const newsData = {
-  "countryCode": "JP",
-  "articles": [
-     {
-       "title": "Something",
-       "text": "Something something something something.",
-        "url": "https://bbc.com/something",
-        "image": "https://bbc.com/image.jpg",
-        "publish_date": "2023-06-03 20:20:55",             "author": "admin", 
-        "language": "en", 
-        "source_country": "af", 
-        "sentiment": -0.191,
-        "emotions": {
-          'Angry': 0.03975000000000001, 
-          'Fear': 0.4335, 
-          'Happy': 0.14325000000000002, 
-          'Sad': 0.19875000000000004, 
-          'Surprise': 0.16075
-        }
-      },
-      
-     ]
-  }
+
 
 
 
@@ -33,39 +12,98 @@ const newsData = {
 const MyMap = () => {
   // const [center, setCenter] = useState([48.8566, 2.3522]);
   // const ZOOM_LEVEL = 9;
+  const [isLoading,setIsLoading]  =useState(true)
+  const [emotionData,setEmotionData] = useState([])
+  useEffect( () =>{
+    async function fetchData(){
+      try{
+
+        const {data} = await axios.get('https://geovibesbackend.onrender.com/api/getEmotions')
+        setEmotionData(data)
+        console.log(data)
+        setIsLoading(false)
+      }
+      catch(error){
+        console.log(error)
+        // setIsLoading(true)
+      }
+    }
+    fetchData()
+  },[])
   const [sources,setSources] = useState([])
   const [tooltipContent,setTooltipContent] = useState("")
   const [emotion,setEmotion] = useState("happy")
+  const [isSourceLoading,setIsSourceLoading] = useState(false)
+  
   const style = (feature) =>{
+    // console.log(feature.properties.iso_a2)
     let fillColor;
+    const country =  emotionData.find(obj =>{
+      
+      return obj.countryCode.toLowerCase() === feature.properties.iso_a2_eh.toLowerCase()
+    })
+    // console.log(country?.emotions?.Angry)
+    
+    let opacity;
     switch (emotion) {
       case 'happy':
         fillColor='green'
+        
+
+        opacity = country?.emotions?.Happy
+          // console.log(opacity)
+        
+
         break;
       case 'fear':
         fillColor = "black"
+        
+        opacity = country?.emotions?.Fear
+        
         break;
       case 'anger':
         fillColor= "red"
+        
+        
+        opacity = country?.emotions?.Angry
+        
         break
       case 'sad':
         fillColor = 'orange'
+        
+        opacity = country?.emotions?.Sad
+        
         break;
       case 'suprise':
         fillColor = 'blue'
+        
+        opacity = country?.emotions?.Surprise
+        
         break;
       default:
         fillColor = 'green'
+       
+          
+        opacity = country?.emotions?.Happy
+        
         setEmotion('happy')
         break;
     }
+    
+
+    if(country === undefined || country.emotions.Angry === 0){
+      console.log(country)
+      opacity = 1
+      fillColor = 'gray'
+    }
+
     return {
       fillColor: fillColor,
       weight: 1,
       opacity: 1,
       color: "white",
       // dashArray: "3",
-      fillOpacity: 0.6
+      fillOpacity: opacity
     }
   }
   function handleMouseOver(e,feature){
@@ -78,13 +116,17 @@ const MyMap = () => {
     //   layer.bringToFront();
     // }
   }
-  const resetHighlight = (e) =>{
-    e.target.setStyle({
-      fillColor:"red"
-    })
-  }
-  const handleClick = (e,feature) =>{
-    setSources(newsData.articles)
+  // const resetHighlight = (e) =>{
+  //   e.target.setStyle({
+  //     fillColor:"red"
+  //   })
+  // }
+  const handleClick = async (e,feature) =>{
+    setIsSourceLoading(true)
+    const {data} = await axios.get(`https://geovibesbackend.onrender.com/api/getCountryNews/${feature.properties.iso_a2}`)
+    console.log(data.articles)
+    setSources(data.articles.splice(0,5))
+    setIsSourceLoading(false)
   }
   
   function onEachFeature(feature, layer) {
@@ -95,28 +137,38 @@ const MyMap = () => {
     });
   }
 
+  if(!isLoading){
+    
+  
   return (
+    
     <>
+
     <MapContainer center={[48.8566, 2.3522]} zoom={2} zoomControl={false}   >
       {/* OPEN STREEN MAPS TILES */}
       <TileLayer
+        key="tile"
         attribution={`<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>`}
         url="https://api.maptiler.com/maps/basic-v2/256/{z}/{x}/{y}.png?key=Uh3uIcsVZjDBcvtIfe9C"
       />
       {data && (
         <GeoJSON key='hel' data={data} style={style} onEachFeature={onEachFeature} >
-          <Popup className="">
-            <h1 className='text-xl font-bold'>Soruces</h1>
+          <Popup className="" key="popup">
+            <h1 className='text-xl font-bold'>Sources</h1>
             <div className='flex flex-col w-full '>
 
-            {sources.map((article)=>{
-              return <>
-                <a href={article.url} style={{fontSize:"1rem",width:"100%"}} target="_blank">1. {article.text}</a>
-                <a href={article.url} style={{fontSize:"1rem",width:"100%"}} target="_blank">1. {article.text}</a>
-                <a href={article.url} style={{fontSize:"1rem",width:"100%"}} target="_blank">1. {article.text}</a>
-                <a href={article.url} style={{fontSize:"1rem",width:"100%"}} target="_blank">1. {article.text}</a>
-                <a href={article.url} style={{fontSize:"1rem",width:"100%"}} target="_blank">1. {article.text}</a>
-              </>
+            {sources.map((article,index)=>{
+              return <p key={index}  className='m-0'>
+                {
+                  isSourceLoading ?<b className='text'>Loading ...</b>: 
+                  <>
+                <b className='font-bold m-0'>{index+ 1}.</b>
+                <a href={article.url} style={{fontSize:"1rem",width:"100%"}} target="_blank"> {article.title}</a>
+                  </>
+              }
+                </p>
+               
+              
             })}
             </div>
           </Popup>
@@ -138,8 +190,12 @@ const MyMap = () => {
     </div>
     </div>
     </>
-
+    
   );
+  }
+  else{
+    return(<h3>Loading</h3>)
+  }
 };
 
 export default MyMap;
