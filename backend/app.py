@@ -201,7 +201,11 @@ def getSentiment(countryCode):
 
 @app.route('/api/getEmotions', methods = ['GET'])
 def getEmotions():
-    return analyzeAllNews(news=getAllNews(), emotionsPath='emotions.json', newsPath='news.json')
+    emotions = []
+    with open('emotions.json') as json_file:
+        emotions = json.load(json_file)
+    
+    return emotions
     
 @app.route('/api/getCountryNews/<countryCode>')
 def getCountryNews(countryCode):
