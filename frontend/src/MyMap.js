@@ -128,13 +128,14 @@ const MyMap = () => {
     //   layer.bringToFront();
     // }
   }
-  const resetHighlight = (e) =>{
-    e.target.setStyle({
-      fillColor:"red"
-    })
-  }
-  const handleClick = (e,feature) =>{
-    // setSources(newsData.articles)
+  // const resetHighlight = (e) =>{
+  //   e.target.setStyle({
+  //     fillColor:"red"
+  //   })
+  // }
+  const handleClick = async (e,feature) =>{
+    const {data} = await axios.get(`https://geovibesbackend.onrender.com/api/getCountryNews/${feature.properties.iso_a2}`)
+    setSources(data.splice(0,5))
   }
   
   function onEachFeature(feature, layer) {
