@@ -33,13 +33,14 @@ const MyMap = () => {
   const [sources,setSources] = useState([])
   const [tooltipContent,setTooltipContent] = useState("")
   const [emotion,setEmotion] = useState("happy")
-
+  const [isSourceLoading,setIsSourceLoading] = useState(false)
+  
   const style = (feature) =>{
     // console.log(feature.properties.iso_a2)
     let fillColor;
     const country =  emotionData.find(obj =>{
       
-      return obj.countryCode.toLowerCase() === feature.properties.iso_a2.toLowerCase()
+      return obj.countryCode.toLowerCase() === feature.properties.iso_a2_eh.toLowerCase()
     })
     // console.log(country?.emotions?.Angry)
     
@@ -47,68 +48,55 @@ const MyMap = () => {
     switch (emotion) {
       case 'happy':
         fillColor='green'
-        if(country === undefined){
-          opacity=1
-        }
-        else{
+        
 
-          opacity = country.emotions.Happy
+        opacity = country?.emotions?.Happy
           // console.log(opacity)
-        }
+        
 
         break;
       case 'fear':
         fillColor = "black"
-        if(country === undefined){
-          opacity=1
-        }
-        else{
-        opacity = country.emotions.Fear
-        }
+        
+        opacity = country?.emotions?.Fear
+        
         break;
       case 'anger':
         fillColor= "red"
-        if(country === undefined){
-          opacity=1
-        }
-        else{
-        opacity = country.emotions.Angry
-        }
+        
+        
+        opacity = country?.emotions?.Angry
+        
         break
       case 'sad':
         fillColor = 'orange'
-        if(country === undefined){
-          opacity=1
-        }
-        else{
-        opacity = country.emotions.Sad
-        }
+        
+        opacity = country?.emotions?.Sad
+        
         break;
       case 'suprise':
         fillColor = 'blue'
-        if(country === undefined){
-          opacity=1
-        }
-        else{
-        opacity = country.emotions.Surprise
-        }
+        
+        opacity = country?.emotions?.Surprise
+        
         break;
       default:
         fillColor = 'green'
-        if(country === undefined){
-          opacity=1
-        }
-        else{
+       
           
-        opacity = country.emotions.Happy
-        }
+        opacity = country?.emotions?.Happy
+        
         setEmotion('happy')
         break;
     }
-    if(feature.properties.iso_a2 =="IN"){
+    
 
-      console.log(opacity)
+    if(country === undefined || country.emotions.Angry === 0){
+      console.log(country)
+      opacity = 1
+      fillColor = 'gray'
     }
+
     return {
       fillColor: fillColor,
       weight: 1,
@@ -134,8 +122,11 @@ const MyMap = () => {
   //   })
   // }
   const handleClick = async (e,feature) =>{
+    setIsSourceLoading(true)
     const {data} = await axios.get(`https://geovibesbackend.onrender.com/api/getCountryNews/${feature.properties.iso_a2}`)
-    setSources(data.splice(0,5))
+    console.log(data.articles)
+    setSources(data.articles.splice(0,5))
+    setIsSourceLoading(false)
   }
   
   function onEachFeature(feature, layer) {
@@ -156,23 +147,28 @@ const MyMap = () => {
     <MapContainer center={[48.8566, 2.3522]} zoom={2} zoomControl={false}   >
       {/* OPEN STREEN MAPS TILES */}
       <TileLayer
+        key="tile"
         attribution={`<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>`}
         url="https://api.maptiler.com/maps/basic-v2/256/{z}/{x}/{y}.png?key=Uh3uIcsVZjDBcvtIfe9C"
       />
       {data && (
         <GeoJSON key='hel' data={data} style={style} onEachFeature={onEachFeature} >
-          <Popup className="">
-            <h1 className='text-xl font-bold'>Soruces</h1>
+          <Popup className="" key="popup">
+            <h1 className='text-xl font-bold'>Sources</h1>
             <div className='flex flex-col w-full '>
 
-            {sources.map((article)=>{
-              return <>
-                <a href={article.url} style={{fontSize:"1rem",width:"100%"}} target="_blank">1. {article.text}</a>
-                <a href={article.url} style={{fontSize:"1rem",width:"100%"}} target="_blank">1. {article.text}</a>
-                <a href={article.url} style={{fontSize:"1rem",width:"100%"}} target="_blank">1. {article.text}</a>
-                <a href={article.url} style={{fontSize:"1rem",width:"100%"}} target="_blank">1. {article.text}</a>
-                <a href={article.url} style={{fontSize:"1rem",width:"100%"}} target="_blank">1. {article.text}</a>
-              </>
+            {sources.map((article,index)=>{
+              return <p key={index}  className='m-0'>
+                {
+                  isSourceLoading ?<b className='text'>Loading ...</b>: 
+                  <>
+                <b className='font-bold m-0'>{index+ 1}.</b>
+                <a href={article.url} style={{fontSize:"1rem",width:"100%"}} target="_blank"> {article.title}</a>
+                  </>
+              }
+                </p>
+               
+              
             })}
             </div>
           </Popup>
