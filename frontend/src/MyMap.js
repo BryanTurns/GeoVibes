@@ -1,31 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import { GeoJSON, MapContainer, TileLayer,Popup,Tooltip } from 'react-leaflet';
 import "leaflet/dist/leaflet.css"
 import data from "./custom.geo.json"
+import axios from "axios"
 
-const newsData = {
-  "countryCode": "JP",
-  "articles": [
-     {
-       "title": "Something",
-       "text": "Something something something something.",
-        "url": "https://bbc.com/something",
-        "image": "https://bbc.com/image.jpg",
-        "publish_date": "2023-06-03 20:20:55",             "author": "admin", 
-        "language": "en", 
-        "source_country": "af", 
-        "sentiment": -0.191,
-        "emotions": {
-          'Angry': 0.03975000000000001, 
-          'Fear': 0.4335, 
-          'Happy': 0.14325000000000002, 
-          'Sad': 0.19875000000000004, 
-          'Surprise': 0.16075
-        }
-      },
-      
-     ]
-  }
+
 
 
 
@@ -33,29 +12,58 @@ const newsData = {
 const MyMap = () => {
   // const [center, setCenter] = useState([48.8566, 2.3522]);
   // const ZOOM_LEVEL = 9;
+  const [isLoading,setIsLoading]  =useState(true)
+  const [emotionData,setEmotionData] = useState([])
+  useEffect( () =>{
+    try{
+
+      const {data} = axios.get('https://geovibesbackend.onrender.com/api/getEmotions')
+      setEmotionData(data)
+      // setIsLoading(false)
+    }
+    catch(error){
+      console.log(error)
+      setIsLoading(true)
+    }
+  },[])
   const [sources,setSources] = useState([])
   const [tooltipContent,setTooltipContent] = useState("")
   const [emotion,setEmotion] = useState("happy")
+
   const style = (feature) =>{
     let fillColor;
+    const country =  emotionData.find(obj =>obj.countryCode.toLowerCase() === feature.properties.iso_a3.toLowerCase())
+    let opacity;
     switch (emotion) {
       case 'happy':
         fillColor='green'
+        opacity = country.emotions.Happy
+
         break;
       case 'fear':
         fillColor = "black"
+        opacity = country.emotions.Fear
+
         break;
       case 'anger':
         fillColor= "red"
+        opacity = country.emotions.Angry
+
         break
       case 'sad':
         fillColor = 'orange'
+        opacity = country.emotions.Sad
+
         break;
       case 'suprise':
         fillColor = 'blue'
+        opacity = country.emotions.Suprise
+
         break;
       default:
         fillColor = 'green'
+        opacity = country.emotions.Happy
+
         setEmotion('happy')
         break;
     }
@@ -84,7 +92,7 @@ const MyMap = () => {
     })
   }
   const handleClick = (e,feature) =>{
-    setSources(newsData.articles)
+    // setSources(newsData.articles)
   }
   
   function onEachFeature(feature, layer) {
@@ -95,8 +103,13 @@ const MyMap = () => {
     });
   }
 
+  if(!isLoading){
+    
+  
   return (
+    
     <>
+
     <MapContainer center={[48.8566, 2.3522]} zoom={2} zoomControl={false}   >
       {/* OPEN STREEN MAPS TILES */}
       <TileLayer
@@ -138,8 +151,12 @@ const MyMap = () => {
     </div>
     </div>
     </>
-
+    
   );
+  }
+  else{
+    return(<h3>Loading</h3>)
+  }
 };
 
 export default MyMap;
