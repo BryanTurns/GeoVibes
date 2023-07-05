@@ -12,6 +12,7 @@ from flask_cors import CORS, cross_origin
 load_dotenv()
 app = Flask(__name__)
 cors = CORS(app)
+app.config['CORS_HEADERS'] = 'Content-Type'
 
 def getNewsByCountry(apiKey, countryCode, language, numberOfArticles, startDate, endDate):
     # Create the url for the news api request
