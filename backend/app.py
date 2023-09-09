@@ -4,7 +4,7 @@ from os import getenv
 from flask_apscheduler import APScheduler
 import json
 from flask_cors import CORS, cross_origin
-from utility import getCountryCodes, getNewsUsingCountryCodes, splitArray
+from utility import getCountryCodes, fetchNewsByCountryCodes, splitArray
 import datetime
 
 
@@ -19,7 +19,7 @@ currentSplit = 0
 def updateCountryNews():
     global splitCountryCodes
     global currentSplit
-    getNewsUsingCountryCodes(apiKey=getenv('API_KEY'), numberOfArticles=40, startDate='2023-06-03 00:00:00', endDate='2023-07-03 12:40:00', countryCodes=splitCountryCodes[currentSplit])
+    fetchNewsByCountryCodes(apiKey=getenv('API_KEY'), numberOfArticles=40, startDate='2023-06-03 00:00:00', endDate='2023-07-03 12:40:00', countryCodes=splitCountryCodes[currentSplit])
     currentSplit += 1
     if currentSplit > len(splitCountryCodes)-1:
         currentSplit = 0
